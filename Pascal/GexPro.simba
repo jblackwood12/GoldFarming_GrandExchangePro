@@ -1,0 +1,594 @@
+program new;
+{$DEFINE SMART}
+{$i srl/SRL.simba}
+{$i GexPro.GameInteraction.simba}
+{$i GexPro.Data.simba}
+
+procedure DeclarePlayers;
+begin
+  HowManyPlayers := 1;
+  NumberOfPlayers(HowManyPlayers);
+  CurrentPlayer := 0;
+
+  Players[0].Name := ReadUserData(1); //Username
+  Players[0].Pass := ReadUserData(2); //Password
+  Players[0].Active := True;   //Membership is active
+  Players[0].Pin :='';         //No pin number is set
+  Players[0].WorldInfo := [True, 0, False];  //Randomly choose a world upon login.
+end;
+
+procedure SetupLogin;
+begin
+  SRL_SixHourFix := False;
+  Smart_FixSpeed := True;
+  SetupSRL;
+  DeclarePlayers;
+  LoginPlayer;
+end;
+
+ function adjust2 (itemName: string; var buy_price_in: Integer; var sell_price_in: Integer; min_profit_in, top_status_in, bottom_status_in, elapsed_movement_in, time_update_in, time_change, itemID: integer): integer;
+ var
+    adjust4, adjust5, adjust7, adjust14, adjust20, initial_buy_price, initial_sell_price: integer;
+    return_value, current_profit_margin, middle_price: integer;
+    was_buying, was_selling: boolean;
+    bought_all, bought_one, bought_none: boolean;
+    sold_all, sold_one, sold_none: boolean;
+    need_to_update, need_to_move: boolean;
+    delta_buy, delta_sell: integer;
+    condition1, condition2, condition3: boolean;
+    condition4, condition5, condition6, condition7: boolean;
+    condition8, condition9, condition10: boolean;
+    condition11, condition12, condition13: boolean;
+ begin
+    initial_sell_price := sell_price_in;
+    initial_buy_price := buy_price_in;
+    current_profit_margin := sell_price_in - buy_price_in;
+    adjust4 := (current_profit_margin/25);
+    adjust5 := (current_profit_margin/20);
+    adjust7 :=  (current_profit_margin/14);
+    adjust14 := (current_profit_margin/7);
+    adjust20 := (current_profit_margin/5);
+    middle_price := (sell_price_in/2 + buy_price_in/2);
+    return_value := 0;
+    was_buying := (top_status_in >= 0);
+    was_selling := (bottom_status_in >= 0);
+    bought_all := (top_status_in = 100);
+    bought_one := (top_status_in = 50);
+    bought_none := (top_status_in = 0);
+    sold_all := (bottom_status_in = 100);
+    sold_one := (bottom_status_in = 50);
+    sold_none := (bottom_status_in = 0);
+    need_to_update := (time_update_in > (time_change*60));
+    need_to_move := (elapsed_movement_in > 4*60);
+    delta_buy := 0;
+    delta_sell := 0;
+
+    condition1 := (was_buying) and (not was_selling) and (bought_all);
+    condition2 :=  (was_buying) and (not was_selling) and (bought_one);
+    condition3 := (was_buying) and (not was_selling) and (bought_none) and (need_to_update);
+    condition4 := (was_buying and was_selling) and (bought_all and sold_all);
+    condition5 := (was_buying and was_selling) and (bought_all) and (sold_none);
+    condition6 :=  (was_buying and was_selling) and (bought_none) and (sold_all);
+    condition7 :=  (was_buying and was_selling) and (bought_none) and (sold_none) and  (need_to_update);
+    condition8 := (not was_buying) and (was_selling) and (sold_all);
+    condition9 := (not was_buying) and (was_selling) and (sold_one);
+    condition10 := (not was_buying) and (was_selling) and (sold_none)and(need_to_update);
+    condition13 :=   (not was_buying)and(not was_selling);
+    condition11 := (condition1 or condition2 or condition3 or condition4 or condition5 or condition6 or condition7 or condition8 or condition9 or condition10 or condition13);
+    condition12 := (need_to_move) and (not condition11);
+
+    if condition1 then
+    begin
+            delta_buy := -adjust20;
+            delta_sell := -adjust7;
+    end else if condition2 then
+    begin
+            delta_buy := -adjust7;
+            delta_sell := -adjust4;
+    end else if condition3 then
+    begin
+            delta_buy := adjust14;
+            delta_sell := adjust7;
+    end else if condition4 then
+    begin
+           delta_buy := -adjust7;
+           delta_sell := adjust7;
+    end else if condition5 then
+    begin
+           delta_buy := -adjust7;
+           delta_sell := -adjust4;
+    end else if condition6 then
+    begin
+            delta_buy := adjust4;
+            delta_sell := adjust7;
+    end else if condition7 then
+    begin
+            delta_buy := adjust7;
+            delta_sell := -adjust7;
+    end else if condition8 then
+    begin
+            delta_buy := adjust7;
+            delta_sell := adjust20;
+    end else if condition9 then
+    begin
+            delta_buy := adjust4;
+            delta_sell := adjust7;
+    end else if condition10 then
+    begin
+            delta_buy := -adjust7;
+            delta_sell := -adjust14;
+    end else if condition13 then
+    begin
+            //No Buy or sell offers were in.
+    end else if condition12 then
+    begin
+            //Need to move, did not meet other conditions
+    end;
+
+    if condition11 then
+    begin
+         buy_price_in := buy_price_in + delta_buy;
+         sell_price_in := sell_price_in + delta_sell;
+         return_value := 1;
+
+         if ((sell_price_in - buy_price_in) < min_profit_in) then
+         begin
+             middle_price := (sell_price_in/2 + buy_price_in/2);
+             buy_price_in := middle_price -  (min_profit_in/2) ;
+             sell_price_in := middle_price + (min_profit_in/2) ;
+         end;
+         save_price_changes_to_socket(itemID, itemName, buy_price_in, sell_price_in, delta_buy, delta_sell );
+
+    end else if condition12 then
+    begin
+          return_value := -1;
+    end;
+
+     Result := return_value;
+ end;
+
+ function adjust10 (itemName: string; var buy_price_in: Integer; var sell_price_in: Integer; min_profit_in, top_status_in, bottom_status_in, elapsed_movement_in, time_update_in, time_change, itemID: integer): integer;
+ var
+    adjust4, adjust5, adjust7, adjust14, adjust20, initial_buy_price, initial_sell_price: integer;
+    return_value, current_profit_margin, middle_price: integer;
+    was_buying, was_selling: boolean;
+    bought_all, bought_one, bought_none: boolean;
+    sold_all, sold_one, sold_none: boolean;
+    need_to_update, need_to_move: boolean;
+    delta_buy, delta_sell: integer;
+    condition1, condition2, condition3: boolean;
+    condition4, condition5, condition6, condition7: boolean;
+    condition8, condition9, condition10: boolean;
+    condition11, condition12, condition13: boolean;
+ begin
+    initial_sell_price := sell_price_in;
+    initial_buy_price := buy_price_in;
+    current_profit_margin := sell_price_in - buy_price_in;
+    adjust4 := (current_profit_margin/25);
+    adjust5 := (current_profit_margin/20);
+    adjust7 :=  (current_profit_margin/14);
+    adjust14 := (current_profit_margin/7);
+    adjust20 := (current_profit_margin/5);
+    middle_price := (sell_price_in/2 + buy_price_in/2);
+    return_value := 0;
+    was_buying := (top_status_in >= 0);
+    was_selling := (bottom_status_in >= 0);
+    bought_all := (top_status_in > 25)
+    bought_one := (top_status_in = 25);
+    bought_none := (top_status_in = 0);
+    sold_all := (bottom_status_in > 25);
+    sold_one := (bottom_status_in = 25);
+    sold_none := (bottom_status_in = 0);
+    need_to_update := (time_update_in > (time_change*60));
+    need_to_move := (elapsed_movement_in > 4*60);
+
+    condition1 := (was_buying) and (not was_selling) and (bought_all);
+    condition2 :=  (was_buying) and (not was_selling) and (bought_one);
+    condition3 := (was_buying) and (not was_selling) and (bought_none) and (need_to_update);
+    condition4 := (was_buying and was_selling) and ((bought_all or sold_all) and (sold_all or sold_one));
+    condition5 := (was_buying and was_selling) and (bought_all or bought_one) and (sold_none);
+    condition6 :=  (was_buying and was_selling) and (bought_none) and (sold_all or sold_one);
+    condition7 :=  (was_buying and was_selling) and (bought_none) and (sold_none) and  (need_to_update);
+    condition8 := (not was_buying) and (was_selling) and (sold_all);
+    condition9 := (not was_buying) and (was_selling) and (sold_one);
+    condition10 := (not was_buying) and (was_selling) and (sold_none)and(need_to_update);
+    condition13 :=   (not was_buying)and(not was_selling);
+    condition11 := (condition1 or condition2 or condition3 or condition4 or condition5 or condition6 or condition7 or condition8 or condition9 or condition10 or condition13);
+    condition12 := (need_to_move) and (not condition11);
+
+    delta_buy := 0;
+    delta_sell := 0;
+
+    if condition1 then
+    begin
+            delta_buy := -adjust20;
+            delta_sell := -adjust7;
+    end else if condition2 then
+    begin
+            delta_buy := -adjust7;
+            delta_sell := -adjust4;
+    end else if condition3 then
+    begin
+           delta_buy := adjust14;
+           delta_sell := adjust7;
+    end else if condition4 then
+    begin
+           delta_buy := -adjust7;
+           delta_sell := adjust7;
+    end else if condition5 then
+    begin
+            delta_buy := -adjust7;
+            delta_sell := -adjust4;
+    end else if condition6 then
+    begin
+            delta_buy := adjust4;
+            delta_sell := adjust7;
+    end else if condition7 then
+    begin
+            delta_buy := adjust7;
+            delta_sell := -adjust7;
+    end else if condition8 then
+    begin
+            delta_buy := adjust7;
+            delta_sell := adjust20;
+    end else if condition9 then
+    begin
+            delta_buy := adjust4;
+            delta_sell := adjust7;
+    end else if condition10 then
+    begin
+            delta_buy := -adjust7;
+            delta_sell := -adjust14;
+    end else if condition13 then
+    begin
+            //No Buy or sell offers were in.
+    end else if condition12 then
+    begin
+            //Need to move, did not meet other conditions
+    end;
+
+    if condition11 then
+    begin
+         buy_price_in := buy_price_in + delta_buy;
+         sell_price_in := sell_price_in + delta_sell;
+
+         return_value := 1;
+         if ((sell_price_in - buy_price_in) < min_profit_in) then
+         begin
+             middle_price := (sell_price_in/2 + buy_price_in/2);
+             buy_price_in := middle_price -  (min_profit_in/2) ;
+             sell_price_in := middle_price + (min_profit_in/2) ;
+         end;
+         save_price_changes_to_socket(itemID, itemName, buy_price_in, sell_price_in, delta_buy, delta_sell );
+
+    end else if condition12 then
+    begin
+          return_value := -1;
+    end;
+
+     Result := return_value;
+ end;
+
+ function make_changes(slot_num, instruction_in, buy_price_in, sell_price_in, min_profit, item_limit_in: integer; name_in: string; itemID, num_bought: integer):string;
+ var
+ item_owned: boolean;
+  num_selling, num_buying:integer;
+  num_bought_this_update: integer;
+  num_items_didnt_sell: integer;
+  num_items_to_sell: integer;
+ begin
+ num_bought_this_update := 0;
+ num_selling := 10;
+ num_items_to_sell := 10;
+    if (instruction_in = -1) then
+    begin
+          //this is to waste time
+           if (percent_complete(slot_num) >= 0)  then
+           begin
+                Wait(1000 + Random(1000));
+                viewoffer(slot_num);
+                ClickBack;
+           end else if (percent_complete(slot_num + 3) >= 0)   then
+           begin
+                Wait(1000 + Random(1000));
+                viewoffer(slot_num + 3);
+                ClickBack;
+           end else
+           begin
+                //No offer found to waste time.
+            end;
+
+    end else if (instruction_in = 1) then
+    begin
+          if (item_limit_in > 1) and (item_limit_in < 11) then
+          begin
+          //remove the bottom slot
+          if (percent_complete(slot_num + 3) >= 0) then
+          begin
+                Wait(1000 + Random(1000));
+                abortandcollect(slot_num + 3,true);
+                Wait(1000 + Random(1000));
+          end;
+           num_items_didnt_sell := countNumItems(itemID);
+
+          //remove the top slot
+          if (percent_complete(slot_num) >= 0) then
+          begin
+                Wait(1000 + Random(1000));
+                abortandcollect(slot_num,true);
+                Wait(1000 + Random(1000));
+          end;
+          Wait(1000 + Random(1000));
+          num_items_to_sell := countNumItems(itemID);
+
+          //make the for sale offer
+          item_owned := isItemInInv(itemID, false);
+          if (item_owned) then
+          begin
+            num_selling := MakeSellOffer( sell_price_in, slot_num + 3, itemID);
+          end else
+          begin
+             num_selling := 0;
+          end;
+          num_bought_this_update := num_items_to_sell - num_items_didnt_sell;
+          num_bought := num_bought + num_bought_this_update;
+          num_buying := Max(0, (item_limit_in - num_bought));
+
+          //make the buy offer
+          Wait(1000 + Random(1000));
+          MakeBuyOffer(name_in, buy_price_in, num_buying, slot_num, 0);
+          Wait(1000 + Random(1000));
+          end;
+    end;
+    Result := inttostr(num_bought) + ',' + inttostr(num_items_to_sell);
+  end;
+
+//These arrays contain the data of all of the items.
+type itemname_array = array [1..3] of string;
+type itembuyprice_array = array [1..3] of integer;
+type itemsellprice_array = array [1..3] of integer;
+type itemminimummargin_array = array [1..3] of integer;
+type itemlimit_array = array [1..3] of integer;
+type itemupdatetime_array = array [1..3] of integer;
+type last_update_array_sec = array [1..3] of integer;
+type time_before_change = array [1..3] of integer;
+type item_click_position_array = array [1..3] of integer; //This is used to determine how far down we need to click on the item search page
+
+//Call this function to generate the image string of the item in the first inventory slot
+function generateImageString(): string;
+var inventoryBox: TBox;
+    temp_string: string;
+    x_temp, y_temp, tempGetcolor: integer;
+begin
+            inventoryBox := InvBox(1); //find the coordinates of the first item in our inventory
+
+            //Coordinates, and dimensions of the rectangle we are sampling pixels from.
+            writeln(' ' + inttostr(inventoryBox.x1) + ' ' + inttostr(inventoryBox.y1) + ' ' + inttostr(inventoryBox.x2) + ' ' + inttostr(inventoryBox.y2));
+            writeln('-------');
+            Wait(10000);
+            temp_string := '';
+
+              for x_temp := inventoryBox.x1 to  inventoryBox.x2   do
+              begin
+                  for y_temp := (inventoryBox.y1 + 9) to  inventoryBox.y2   do
+                  begin
+                            if(((y_temp MOD 2) = 0 ) and ((x_temp MOD 2) = 0))  then
+                            begin
+                                 tempGetcolor := GetColor(x_temp,y_temp);
+                                   if(tempGetcolor < 10) then   begin
+                                           temp_string := temp_string + '00000000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 100) then begin
+                                            temp_string := temp_string + '0000000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 1000) then begin
+                                           temp_string := temp_string + '000000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 10000) then begin
+                                          temp_string := temp_string + '00000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 100000) then begin
+                                           temp_string := temp_string + '0000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 1000000) then begin
+                                          temp_string := temp_string + '000'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 10000000) then begin
+                                          temp_string := temp_string + '00'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 100000000) then begin
+                                          temp_string := temp_string + '0'+ inttostr(tempGetcolor) + ',';
+                                   end else if (tempGetcolor < 1000000000) then begin
+                                          temp_string := temp_string + inttostr(tempGetcolor) + ',';
+                                   end else
+                                       writeln('tempGetcolor is too big!' + inttostr(tempGetcolor));
+                                   end;
+                  end;
+              end;
+    writeln(temp_string);
+    wait(50000);
+end;
+
+procedure MainLoop;
+var
+i, lastmovement, adjust_return_val, loop_count, time_since_movement, time_since_update: integer;
+ we_are_bosses: boolean;
+
+ //Stores the time that the script should stop
+var ending_time: integer;
+var itemname: itemname_array;
+var itembuyprice: itembuyprice_array;
+var itemsellprice: itemsellprice_array;
+var itemminmargin: itemminimummargin_array;
+var itemlimit: itemlimit_array;
+var lastupdate: last_update_array_sec;
+var time_change: time_before_change;
+var num_bought: boughtSoFar_array;
+var itemIDs: item_ID_array; //This stores the item ID's we are currently flipping, used to save_price_changes_to_database
+var latestUpdateTimes: latest_Update_time_array;
+var itemString: string;
+var make_changes_return: string;
+temp_strings: TStringArray;
+
+begin
+//Read in our ACCOUNT_ID, this is used to save to the database
+ACCOUNT_ID := strtoint(ReadUserData(0));
+
+Writeln(Round(Now*10000)); //resolution of 1/10,000th of a day.
+latestUpdateTimes := loadUpdateTimes();
+
+//To set the ending_time, grab current time, add the time until it should stop.
+//Time should range from 5 hours to 5 hours 40 minutes.
+//After this amount of time has passed, logout.
+ending_time := GetSystemTime/1000 + 18000 + Random(2400);
+SetupLogin;
+Writeln('Logging in!');
+Wait(43000 + Random(5000));
+Writeln('You are now logged in.');
+
+//Read in the 3 different items
+for I := 1 to 3 do
+begin
+  temp_strings := Explode(',',ReadSavedPrices(I-1));
+  itemIDs[I] := I; //Just incase we don't read a line, lets put in 1,2,3 as a substitute instead of -1
+
+  if (length(temp_strings) > 0) then
+  begin
+      itemIDs[I] := StrToInt(temp_strings[0]);
+  end;
+   num_bought[I] := 0;
+
+  if (length(temp_strings) > 1)     then
+  begin
+        num_bought[I] := StrToInt(temp_strings[1]);
+  end;
+
+  if (itemIDs[I] > 0)  then begin
+      temp_strings := Explode(',',GetItemInformation(itemIDs[I]));
+
+      lastupdate[I] := 0;
+      itemname[I] := temp_strings[1];
+      itemlimit[I] := strtoint(temp_strings[2]);
+      itembuyprice[I] := strtoint(temp_strings[3]);
+      itemsellprice[I] := strtoint(temp_strings[4]);
+
+      if(strtoint(temp_strings[5]) <> 0)then
+      begin
+          itemname[I] := itemname[I] + '/' + temp_strings[5];
+      end;
+
+      time_change[I] := strtoint(temp_strings[6]);
+      itemminmargin[I] := strtoint(temp_strings[7]);
+  end else begin
+      lastupdate[I] := 0;
+      itemname[I] := '';
+      itemlimit[I] := 0;
+      itembuyprice[I] := 0;
+      itemsellprice[I] := 0;
+      time_change[I] := 0;
+      itemminmargin[I] := 0;
+  end;
+end;
+
+SavePrices(itemIDs, num_bought);
+Writeln('We are now done loading data in from UserData.txt and SavedPrices.txt');
+
+if not isGEOpen then
+begin
+  OpenGE;
+end;
+      lastmovement := GetSystemTime/1000;
+      we_are_bosses := true;
+      loop_count := 0;
+      i := 0;
+      adjust_return_val := 0;
+
+      while we_are_bosses  do
+      begin
+          i := (loop_count mod 3) + 1;
+          time_since_update := GetSystemTime/1000 - lastupdate[i];
+          time_since_movement := GetSystemTime/1000 - lastmovement;
+           if (itemIDS[i] >= 0)    then
+           begin
+                 if(itemlimit[i] = 2) then
+                 begin
+                    adjust_return_val := adjust2(itemname[i], itembuyprice[i], itemsellprice[i], itemminmargin[i], percent_complete(i), percent_complete(i+3),time_since_movement, time_since_update, time_change[i], itemIDs[i]);
+                 end else if (itemlimit[i] = 10) then
+                 begin
+                    adjust_return_val := adjust10(itemname[i], itembuyprice[i], itemsellprice[i], itemminmargin[i], percent_complete(i), percent_complete(i+3),time_since_movement, time_since_update, time_change[i], itemIDs[i]);
+                 end;
+                   latestUpdateTimes[itemIDs[i]] :=  Round(Now*10000);     //Record that we were updating prices.
+                   SaveLastTradeTime(latestUpdateTimes);
+
+                   Wait(1000 + Random(1000));
+                  if(itemlimit[i] < 11) then begin //this is for smaller limit items
+                     if (adjust_return_val = 1) then
+                     begin
+                          make_changes_return := make_changes(i, adjust_return_val, itembuyprice[i], itemsellprice[i], itemminmargin[i], itemlimit[i], itemname[i], itemIDs[i],num_bought[i] ); //CHECK
+                          temp_strings := Explode(',',make_changes_return);
+                          num_bought[i] := strtoint(temp_strings[0]);
+                          lastupdate[i] := GetSystemTime/1000;
+                           writeln(temp_strings);
+                          if (num_bought[i] >= itemlimit[i]) and (strtoint(temp_strings[1]) <= 0)then
+                          begin //we bought all and we aren't selling any.
+                              itemIDs[i] := -1;
+                              itemname[i] := '';
+                              itemlimit[i] := 0;
+                              itembuyprice[i] := 0;
+                              itemsellprice[i] := 0;
+                              time_change[i] := 0;
+                              itemminmargin[i] := 0;
+                              lastupdate[i] := 0;
+                          end;
+                          lastmovement := GetSystemTime/1000;
+                      end else if (adjust_return_val = -1) then
+                      begin
+                          make_changes_return := make_changes(i, adjust_return_val, itembuyprice[i], itemsellprice[i], itemminmargin[i], itemlimit[i], itemname[i], itemIDs[i], num_bought[i]);
+                          lastmovement := GetSystemTime/1000;
+                      end;
+                  end;
+
+                Wait(3000 + Random(1000));
+                loop_count := loop_count + 1;
+
+                //Remember to save the itemIDs to the file
+                SavePrices(itemIDs, num_bought);
+
+                //Check if it is time to logout and stop the script.
+                if ((GetSystemTime/1000) > ending_time) then
+                begin
+                  LogOutCompletely;
+                  exit;
+                end;
+          end else begin         //We don't have a merchable item, so try to find a new one..
+            itemString :=  GetNewItem(itemIDs[1],itemIDs[2],itemIDs[3], itemIDs[i], latestUpdateTimes);
+             Wait(15000 + Random(1000));
+            writeln(itemString);
+            if (length(itemString) > 1) then
+            begin
+                temp_strings := Explode(',',itemString);
+                lastupdate[i] := 0;
+                itemIDs[i] := strtoint(temp_strings[0]);
+                itemname[i] := temp_strings[1];
+                itemlimit[i] := strtoint(temp_strings[2]);
+                itembuyprice[i] := strtoint(temp_strings[3]);
+                itemsellprice[i] := strtoint(temp_strings[4]);
+
+                if(strtoint(temp_strings[5]) <> 0)then
+                begin
+                    itemname[i] := itemname[i] + '/' + temp_strings[5];
+                end;
+                num_bought[i] := 0;
+                time_change[i] := strtoint(temp_strings[6]);
+                itemminmargin[i] := strtoint(temp_strings[7]);
+            end;
+                //Remember to save the itemIDs to the file
+                SavePrices(itemIDs, num_bought);
+
+                //Check if it is time to logout and stop the script.
+                if ((GetSystemTime/1000) > ending_time) then
+                begin
+                  LogOutCompletely;
+                  exit;
+                end;
+            loop_count := loop_count + 1;
+          end;
+      end;
+end;
+
+begin
+MainLoop;
+end.
