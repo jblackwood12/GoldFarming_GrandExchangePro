@@ -8,61 +8,11 @@ public int limit;					//ge buying limit (2-10,000); arbitrary ge restrictions
 public int guide_price;
 public double[] percentage_buy_intervals;
 public double[] percentage_sell_intervals;
-public String item_type;
-public int min_profit;
-public boolean[] sell_hist;
-public boolean[] buy_hist;
-public int initial_profit_margin;
-public int[] buy_prices;
-public int profit;
-public int row;
 
 
 //buy price
 public int buy_price;
 public int sell_price;
-//the following are experimental variables for 2-limit items:
-public int total_profit; //totaling profits for display
-public int offered_to_buy;
-public int actually_bought;
-public int offered_to_sell;
-public int actually_sold;
-
-
-public void update_profit(int loop_num_in){
-	if (loop_num_in == 0){
-		profit = profit - initial_profit_margin;
-	}
-	if(actually_bought > 0){
-		for (int x = 1; x <= actually_bought; x++){
-			shift_back(buy_price);
-		}
-	}
-	if(actually_sold > 0){
-		for (int x = 1; x <= actually_sold; x++){
-			int old_buy = shift_forward();
-			if (old_buy == 0){
-				old_buy = buy_price;
-			}
-			profit = profit + (sell_price - old_buy);
-		}
-	}
-}
-
-public void shift_back(int new_price){
-	for(int x = 9; x > 0; x--){
-		buy_prices[x] = buy_prices[x-1];
-	}
-	buy_prices[0] = new_price;
-}
-public int shift_forward(){
-	int temp_ret = buy_prices[0];
-	for(int x = 0; x < 9; x++){
-		buy_prices[x] = buy_prices[x + 1];
-	}
-	buy_prices[9] = 0;
-	return temp_ret;
-}
 
 public ItemClass(ItemClass other){
 	buy_price = other.buy_price;
@@ -71,121 +21,17 @@ public ItemClass(ItemClass other){
 	limit = other.limit;
 	buy_price = other.buy_price;
 	sell_price = other.sell_price;
-	total_profit = other.total_profit;
-	offered_to_buy = other.offered_to_buy;
-	actually_bought = other.actually_bought;
-	offered_to_sell = other.offered_to_sell;
-	actually_sold = other.actually_sold;
-	item_type = other.item_type;
-	min_profit = other.min_profit;
-	sell_hist = other.sell_hist;
-	buy_hist = other.buy_hist;
-		sell_hist = other.sell_hist;
-		buy_hist = other.sell_hist;	
-	buy_prices = other.buy_prices;
-	profit = other.profit;
-	
 	initialize_intervals();
 }
 
-public ItemClass(String name_item_in, int limit_in, int id_in, String item_type_in, int min_profit_in, int row_in){
-	row = row_in;
+public ItemClass(String name_item_in, int limit_in, int id_in){
 	buy_price = 0;
 	sell_price = 0;
 	name_item = name_item_in;
 	limit = limit_in;
 	item_id = id_in;
 	guide_price = GrandExchange.lookup(item_id).getGuidePrice();
-	offered_to_buy = 0;
-	actually_bought = 0;
-	offered_to_sell = 0;
-	min_profit = min_profit_in;
-	item_type = item_type_in;
-	
-	profit = 0;
-	buy_prices = new int[10];
-	for(int x = 0; x < 10; x++){
-		buy_prices[x] = 0;
-	}
-	
-	sell_hist = new boolean[7]; 
-	buy_hist = new boolean[7];
-		sell_hist[0] = false;
-		buy_hist[0] = false;
-		sell_hist[1] = false;
-		buy_hist[1] = false;
-		sell_hist[2] = false;
-		buy_hist[2] = false;
-		sell_hist[3] = false;
-		buy_hist[3] = false;
-		sell_hist[4] = false;
-		buy_hist[4] = false;
-		sell_hist[5] = false;
-		buy_hist[5] = false;
-		sell_hist[6] = false;
-		buy_hist[6] = false;
-	
-	
-	
-	actually_sold = 0;
 	initialize_intervals();
-}
-
-public ItemClass(String name_item_in, int limit_in, int id_in, int row_in){
-	row = row_in;
-	buy_price = 0;
-	sell_price = 0;
-	name_item = name_item_in;
-	limit = limit_in;
-	item_id = id_in;
-	guide_price = GrandExchange.lookup(item_id).getGuidePrice();
-	offered_to_buy = 0;
-	actually_bought = 0;
-	offered_to_sell = 0;
-	min_profit = -1;
-	item_type = "";
-	profit = 0;
-	buy_prices = new int[10];
-	for(int x = 0; x < 10; x++){
-		buy_prices[x] = 0;
-	}
-
-	sell_hist = new boolean[7]; 
-	buy_hist = new boolean[7];
-	sell_hist[0] = false;
-	buy_hist[0] = false;
-	sell_hist[1] = false;
-	buy_hist[1] = false;
-	sell_hist[2] = false;
-	buy_hist[2] = false;
-	sell_hist[3] = false;
-	buy_hist[3] = false;
-	sell_hist[4] = false;
-	buy_hist[4] = false;
-	sell_hist[5] = false;
-	buy_hist[5] = false;
-	sell_hist[6] = false;
-	buy_hist[6] = false;
-
-	
-	
-	actually_sold = 0;
-	initialize_intervals();
-}
-
-public void store_sell_hist(boolean new_in){
-	for (int x = 5; x >= 0; x--){
-		sell_hist[x + 1] = sell_hist[x];
-	}
-	sell_hist[0] = new_in;
-	
-}
-public void store_buy_hist(boolean new_in){
-	for (int x = 5; x >= 0; x--){
-		buy_hist[x + 1] = buy_hist[x];
-	}
-	buy_hist[0] = new_in;
-	
 }
 
 public void initialize_intervals(){
@@ -237,7 +83,7 @@ public int get_offer_sell_price(int count){
 }
 
 public String toString(){
-	return ("Name:" + name_item + " Buy Price:" + buy_price + " Sell Price:" + sell_price + " Margin:" + (sell_price - buy_price));
+	return ("Name:" + name_item + " ID:" + item_id + " Price:" + guide_price + " Buy Price:" + buy_price + " Sell Price:" + sell_price + " Margin:" + (sell_price - buy_price));
 }
 
 public double determine_materiality(){
@@ -250,6 +96,18 @@ public double determine_materiality(){
 	}else{
 		return (0.0002/6);
 	}
+}
+
+//num_items == 0
+public void raise_range(){
+	buy_price *= (1 + determine_materiality());
+	sell_price *= (1 + determine_materiality());
+}
+
+//num_items == limit
+public void lower_range(){
+	buy_price *= (1 - determine_materiality());
+	sell_price *= (1 - determine_materiality());
 }
 
 public void lower_selling_price(){
@@ -269,16 +127,32 @@ public void raise_buying_price(){
 }
 
 public void widen_margin(){
+	double margin = (sell_price - buy_price)/((double)buy_price);
 	int avg_price = (buy_price + sell_price)/2;
+	if(margin < (determine_materiality()*1*avg_price)){
 		buy_price = avg_price;
 		sell_price = avg_price;
-		for(int i = 0; i < 2; i++){
+		for(int i = 0; i < 3; i++){
 			lower_buying_price();
 			raise_selling_price();
+		}
+		
 	}
 }
 
 public void swap_prices(){
 	if(buy_price > sell_price){
 		int temp = buy_price;
-		buy_pr
+		buy_price = sell_price;
+		sell_price = temp;
+	}
+}
+
+
+
+
+}
+
+
+
+
